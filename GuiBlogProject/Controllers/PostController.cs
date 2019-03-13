@@ -193,15 +193,15 @@ namespace GuiBlogProject.Controllers
         {
             if (file != null)
             {
-                var uploadFolder = "~/Upload";
-                var mappedFolder = Server.MapPath("~/Upload");
+                var uploadFolder = "~/Upload/";
+                var mappedFolder = Server.MapPath(uploadFolder);
 
                 if (!Directory.Exists(mappedFolder))
                 {
                     Directory.CreateDirectory(mappedFolder);
                 }
 
-                file.SaveAs(mappedFolder + file);
+                file.SaveAs(mappedFolder + file.FileName);
 
                 return uploadFolder + file.FileName;
             }
