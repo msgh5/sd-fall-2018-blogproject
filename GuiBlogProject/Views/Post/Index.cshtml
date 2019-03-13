@@ -1,0 +1,13 @@
+﻿@model List<IndexPostViewModel>
+
+@{
+    ViewBag.Title = "Index";
+}
+
+<h2>Index</h2>
+
+@foreach(var post in Model)
+{
+    <p>@post.Title</p>
+}
+
