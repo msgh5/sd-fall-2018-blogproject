@@ -1,16 +1,16 @@
-﻿using GuiBlogProject.Models;
+﻿using GuiBlogProject.ExtensionMethods;
+using GuiBlogProject.Models;
+using GuiBlogProject.Models.Domain;
+using Microsoft.AspNet.Identity;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Web;
 using System.Web.Mvc;
-using System.Data.Entity;
-using GuiBlogProject.Models.Domain;
-using System.IO;
-using Microsoft.AspNet.Identity;
 
 namespace GuiBlogProject.Controllers
-{   
+{
     public class PostController : Controller
     {
         private List<string> AllowedExtenions = new List<string>
@@ -22,19 +22,64 @@ namespace GuiBlogProject.Controllers
         {
             Context = new ApplicationDbContext();
         }
-        
-        public ActionResult Index()
+
+        public ActionResult Index(string searchQuery)
         {
-            var posts = Context.Posts
-                .Select(p => new IndexPostViewModel
-                {
-                   Id = p.Id,
-                   Body = p.Body,
-                   MediaUrl = p.MediaUrl,
-                   Title = p.Title,
-                   UserEmail = p.User.Email
-                })
-                .ToList();
+            ViewBag.SearchQuery = searchQuery;
+
+            var isAdmin = User.IsInRole("Admin");
+
+            var query = Context.Posts
+               .Where(p => isAdmin || p.Published)
+               .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(searchQuery))
+            {
+                query = query.Where(p => p.Slug.Contains(searchQuery) ||
+                                   p.Body.Contains(searchQuery) ||
+                                   p.Title.Contains(searchQuery)).AsQueryable();
+            }
+
+            var posts = query.Select(p => new IndexPostViewModel
+            {
+                Id = p.Id,
+                Body = p.Body,
+                MediaUrl = p.MediaUrl,
+                Title = p.Title,
+                UserEmail = p.User.Email
+            })
+               .ToList();
+
+
+            //if (User.IsInRole("Admin"))
+            //{
+            //    posts = Context.Posts
+            //   .Select(p => new IndexPostViewModel
+            //   {
+            //       Id = p.Id,
+            //       Body = p.Body,
+            //       MediaUrl = p.MediaUrl,
+            //       Title = p.Title,
+            //       UserEmail = p.User.Email
+            //   })
+            //   .ToList();
+            //}
+            //else
+            //{
+            //    posts = Context.Posts
+            //    .Where(p => p.Published)
+            //    .Select(p => new IndexPostViewModel
+            //    {
+            //        Id = p.Id,
+            //        Body = p.Body,
+            //        MediaUrl = p.MediaUrl,
+            //        Title = p.Title,
+            //        UserEmail = p.User.Email
+            //    })
+            //    .ToList();
+            //}
+
+
 
             return View(posts);
         }
@@ -70,7 +115,21 @@ namespace GuiBlogProject.Controllers
             post.Body = model.Body;
             post.Title = model.Title;
             post.Published = model.Published;
+            post.Slug = model.Title.ToSlug();
             post.MediaUrl = UploadFile(model.FileUpload);
+
+            do
+            {
+                if (Context.Posts.Any(p => p.Slug == post.Slug))
+                {
+                    var random = new Random();
+
+                    var randomNumber = random.Next(0, 1001);
+
+                    post.Slug += randomNumber;
+                }
+            } while (Context.Posts.Any(p => p.Slug == post.Slug));
+
 
             Context.Posts.Add(post);
             Context.SaveChanges();
@@ -93,7 +152,7 @@ namespace GuiBlogProject.Controllers
             {
                 return RedirectToAction(nameof(PostController.Index));
             }
-            
+
             var model = new CreateEditPostViewModel();
             model.Body = post.Body;
             model.MedialUrl = post.MediaUrl;
@@ -131,12 +190,12 @@ namespace GuiBlogProject.Controllers
             post.Title = model.Title;
             post.Body = model.Body;
             post.DateUpdated = DateTime.Now;
-            
+
             if (model.FileUpload != null)
             {
                 post.MediaUrl = UploadFile(model.FileUpload);
             }
-            
+
             Context.SaveChanges();
 
             return RedirectToAction(nameof(PostController.Index));
@@ -157,7 +216,7 @@ namespace GuiBlogProject.Controllers
             {
                 return RedirectToAction(nameof(PostController.Index));
             }
-            
+
             Context.Posts.Remove(post);
             Context.SaveChanges();
 
@@ -165,14 +224,15 @@ namespace GuiBlogProject.Controllers
         }
 
         [HttpGet]
-        public ActionResult ViewPost(int? id)
+        [Route("blog/{slug}")]
+        public ActionResult ViewPost(string slug)
         {
-            if (!id.HasValue)
+            if (string.IsNullOrWhiteSpace(slug))
             {
                 return RedirectToAction(nameof(PostController.Index));
             }
 
-            var post = Context.Posts.FirstOrDefault(p => p.Id == id.Value);
+            var post = Context.Posts.FirstOrDefault(p => p.Slug == slug);
 
             if (post == null)
             {
@@ -185,6 +245,12 @@ namespace GuiBlogProject.Controllers
             model.DateUpdated = post.DateUpdated;
             model.Title = post.Title;
             model.MediaUrl = post.MediaUrl;
+            model.Comments = post
+                .Comments
+                .Select(p => new CommentPostViewModel
+                {
+                    Body = p.Body
+                }).ToList();
 
             return View(model);
         }

@@ -12,6 +12,7 @@ namespace GuiBlogProject.Models
     public class ApplicationUser : IdentityUser
     {
         public virtual List<Post> Posts { get; set; }
+        public virtual List<Comment> Comments { get; set; }
 
         public ApplicationUser()
         {
@@ -35,6 +36,7 @@ namespace GuiBlogProject.Models
         }
 
         public DbSet<Post> Posts { get; set; }
+        public DbSet<Comment> Comments { get; set; }
 
         public static ApplicationDbContext Create()
         {

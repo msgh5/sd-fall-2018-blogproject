@@ -6,6 +6,11 @@
 
 <h2>Index</h2>
 
+<form>
+    <input type="text" placeholder="Search" name="searchQuery" value="@ViewBag.SearchQuery" />
+    <button type="submit">Search!</button>
+</form>
+
 @foreach(var post in Model)
 {
     <p>@post.Title</p>
